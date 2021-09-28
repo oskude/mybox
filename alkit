@@ -1,0 +1,154 @@
+#!/usr/bin/bash
+
+function MsgOk     { printf "\033[0;32m${@}\033[0m\n"; }
+function MsgEr     { printf "\033[0;31m${@}\033[0m\n"; }
+function MsgHi     { printf "\033[0;34m${@}\033[0m\n"; }
+function Abort     { MsgEr "$1"; exit 1; }
+function TplFiles  { find "$1" -mindepth 2 -type f,l -printf '%P\n'; }
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function PackageChanges {
+	local template="$1"
+	local action="$2"
+	local pkgsfile="$template/pkgs.list"
+
+	[[ ! -f "$pkgsfile" ]] && return
+
+	case $action in
+		push)
+			pacman -S --needed $(<$pkgsfile)
+		;;
+		diff)
+			while read line; do
+				echo "[${template##*/}] ${line/was not found/is not installed}"
+			done < <(pacman -Qi $(<$pkgsfile) 2>&1 | grep "error: " | cut -c7-)
+		;;
+		stat)
+			local pkgs=$(<$pkgsfile)
+			local -a instpkgs
+			local -a misspkgs
+			for pkg in ${pkgs[@]}; do
+				if $(pacman -Qi $pkg &> /dev/null); then
+					instpkgs+=($pkg)
+				else
+					misspkgs+=($pkg)
+				fi
+			done
+			[[ "${#instpkgs[@]}" -gt 0 ]] && MsgOk "OK: (${instpkgs[*]})"
+			[[ "${#misspkgs[@]}" -gt 0 ]] && MsgEr "MISS: (${misspkgs[*]})"
+		;;
+	esac
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function FileChanges {
+	local system="$1"
+	local template="$2"
+	local extraopt="$3"
+
+	rsync \
+		--exclude="/*.*" \
+		--recursive \
+		--links \
+		--perms \
+		--executability \
+		--checksum \
+		--itemize-changes \
+		$extraopt "$template/" "$system/"
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function cmd_stat {
+	local system="$1"
+	local template="$2"
+
+	MsgHi "[${template##*/}]"
+
+	PackageChanges "$template" "stat"
+
+	local -a changes
+	mapfile changes < <(FileChanges "$system" "$template" "--dry-run")
+	for file in $(TplFiles "$template"); do
+		for change in ${changes[@]}; do
+			if [[ "$file" = "${change#* }" ]]; then
+				MsgEr "DIFF: $file"
+				continue 2
+			fi
+		done
+		MsgOk "OK: $file"
+	done
+
+	[[ -e "$template/stat.sh" ]] && source "$template/stat.sh";
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function cmd_diff {
+	local system="$1"
+	local template="$2"
+
+	PackageChanges "$template" "diff"
+
+	while read change; do
+		local file="${change#* }"
+		echo "[${template##*/}] $change"
+		# TODO: is there a tool that diffs also permissions and symlinks?
+		diff --color "$system/$file" "$template/$file"
+	done < <(FileChanges "$system" "$template" "--dry-run")
+
+	[[ -e "$template/diff.sh" ]] && source "$template/diff.sh";
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function cmd_push {
+	local system="$1"
+	local template="$2"
+
+	MsgHi "[${template##*/}]"
+	PackageChanges "$template" "push"
+	FileChanges "$system" "$template"
+	[[ -e "$template/push.sh" ]] && source "$template/push.sh";
+}
+
+###############################################################################
+
+MYCOMMAND="$1"; shift
+MYTEMPLATES="${@:-*/}"
+MYSYSROOT="${ALKIT_SYS:-/}"
+MYTPLROOT="${ALKIT_TPL:-$PWD}"
+MYMNTROOT="${ALKIT_MNT:-/tmp/myboxxxxx}"
+
+if [[ -z $MYCOMMAND ]]
+then
+	cat <<- 'ENDOFUSAGE'
+		setup system according to template(s).
+		usage: alkit <command> [<template> ...]
+		environment:
+		  ALKIT_SYS   path to system root. default "/"
+		  ALKIT_TPL   path to template root. default "$PWD"
+		  ALKIT_MNT   path to varifs mount. default "/tmp/myboxxxxx"
+		command:
+		  stat   show <template> status in system
+		  diff   show <template> differences in system
+		  push   copy <template> to system
+		template(s):
+		  ALKIT_TPL relative path to template dir. default "*/"
+	ENDOFUSAGE
+else
+	case $MYCOMMAND in
+		stat|diff|push)
+			mkdir -p "$MYMNTROOT"
+			./varifs "$MYMNTROOT" -o root="$MYTPLROOT"
+			for template in ${MYTEMPLATES[@]}; do
+				"cmd_$MYCOMMAND" "$MYSYSROOT" "$MYMNTROOT/${template%/}"
+			done
+			fusermount -u "$MYMNTROOT"
+			rmdir "$MYMNTROOT"
+		;;
+		*) Abort "unknown alkit command: $MYCOMMAND";;
+	esac
+fi

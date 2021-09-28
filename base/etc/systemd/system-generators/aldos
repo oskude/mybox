@@ -1,0 +1,40 @@
+#!/usr/bin/bash
+# enable systemd unit files from /etc/aldos
+
+declare gendir="$1"
+declare etcdir="/etc/aldos"
+declare insdir outdir
+declare -a lines
+declare wantsexp='WantedBy=([^
+]+)'
+declare reqsexp='RequiredBy=([^
+]+)'
+
+function FindUnitFiles {
+	local _dir="$1"
+	find "$1" -mindepth 1 -maxdepth 1 -regextype posix-egrep \
+		-regex '.+\.(service|mount|path)'
+}
+
+function GetInstallDir {
+	local _file="$1"
+	local -n _out="$2"
+	_out=""
+	mapfile lines < "$_file"
+	if [[ "${lines[*]}" =~ $wantsexp ]]; then
+		_out="${BASH_REMATCH[1]}.wants"
+	fi
+	if [[ "${lines[*]}" =~ $reqsexp ]]; then
+		_out="${BASH_REMATCH[1]}.requires"
+	fi
+}
+
+for file in $(FindUnitFiles "$etcdir"); do
+	ln -s "$file" "$gendir"
+	GetInstallDir "$file" "insdir"
+	if [[ -n "$insdir" ]]; then
+		outdir="$gendir/$insdir"
+		mkdir -p "$outdir"
+		ln -sr "$gendir/${file#$etcdir/}" "$outdir/"
+	fi
+done

@@ -1,0 +1,2 @@
+[Service]
+ExecStart=/etc/aldos/user-files.sh

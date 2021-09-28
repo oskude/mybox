@@ -1,0 +1,8 @@
+[Mount]
+Where=/var/log
+What=tmpfs
+Type=tmpfs
+Options=rw,size=100M
+
+[Install]
+RequiredBy=local-fs.target

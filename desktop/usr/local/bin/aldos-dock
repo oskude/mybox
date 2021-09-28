@@ -1,0 +1,136 @@
+#!/usr/bin/env -S QML_XHR_ALLOW_FILE_READ=1 qml
+
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import QtQuick.Layouts 1.15
+
+Window {
+	id: root
+	title: "aldos-dock"
+	width: 8
+	height: 480
+	visible: true
+	color: "black"
+	flags: Qt.SplashScreen
+
+	property int numCpus: getNumCpus()
+
+	ColumnLayout {
+		anchors.fill: parent
+		spacing: 0
+		MemView {
+			id: memView
+			Layout.preferredHeight: root.height / (root.numCpus + 1)
+			Layout.fillWidth: true
+		}
+		CpuView {
+			id: cpuView
+			Layout.fillWidth: true
+			Layout.fillHeight: true
+		}
+	}
+
+	/*
+	MouseArea {
+		anchors.fill: parent
+		cursorShape: Qt.PointingHandCursor
+		onClicked: {
+			console.log("TODO: start htop")
+			// TODO: i guess we need a desktop file with `urxvt -e`?
+			// and set: xdg-mime default urxvte.desktop application/x-executable
+			//Qt.openUrlExternally("/usr/bin/htop")
+		}
+	}
+	*/
+
+	Timer {
+		interval: 250; repeat: true; running: true; triggeredOnStart: true
+		onTriggered: cpuView.requestPaint()
+	}
+
+	Timer {
+		interval: 1000; repeat: true; running: true; triggeredOnStart: true
+		onTriggered: memView.update()
+	}
+
+	component MemView: Rectangle {
+		color: "black"
+		property double memUsed
+		property double memCached
+		Rectangle {
+			color: Qt.rgba(0.1, 0.5, 1, 0.8)
+			anchors.bottom: parent.bottom
+			anchors.left: parent.left
+			anchors.right: parent.right
+			height: parent.height * memUsed
+			Rectangle {
+				color: Qt.rgba(0, 0, 0, 0.5)
+				anchors.top: parent.top
+				anchors.left: parent.left
+				anchors.right: parent.right
+				height: parent.height * memCached
+			}
+		}
+		function update () {
+			[memUsed, memCached] = getMemData()
+		}
+	}
+
+	component CpuView: Canvas {
+		onPaint: {
+			var ctx = getContext("2d")
+			var data = getCpuData()
+			var cpuh = height / data.length
+			ctx.fillStyle = Qt.rgba(0, 0, 0, 0.25)
+			ctx.fillRect(0, 0, width, height)
+			ctx.fillStyle = Qt.rgba(0, 1, 0, 0.25)
+			data.forEach((e,i)=>{
+				ctx.fillRect(0, cpuh * (i+1), width, -(cpuh * e))
+			})
+		}
+	}
+
+	property var cpuTotals: []
+	property var cpuUseds: []
+
+	function getCpuData () {
+		let data = readFile("/proc/topstats/cpu")
+		let arr = data.split("\n").slice(0, -1)
+		return arr.map((e,i)=>{
+			let [total, used] = e.split(" ").map(x=>parseInt(x))
+			let usage = (used - cpuUseds[i]) / (total - cpuTotals[i])
+			cpuUseds[i] = used
+			cpuTotals[i] = total
+			return usage
+		})
+	}
+
+	function getMemData () {
+		let data = readFile("/proc/topstats/mem")
+		let [total, used, cached] = data.split("\n")[0].split(" ")
+			.map(x=>parseInt(x));
+		return [
+			used / total,
+			cached / used
+		]
+	}
+
+	function getNumCpus () {
+		let data = readFile("/proc/topstats/cpu")
+		return data.split("\n").length - 1
+	}
+
+	function readFile (path) {
+		let req = new XMLHttpRequest()
+		req.open("GET", path, false)
+		req.send(null)
+		return req.responseText
+	}
+
+	function writeFile (path, text) {
+		let req = new XMLHttpRequest()
+		req.open("PUT", path, false)
+		req.send(text)
+		return req.status
+	}
+}

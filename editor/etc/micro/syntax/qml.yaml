@@ -1,0 +1,21 @@
+filetype: qml
+
+detect:
+    filename: "\\.qml$"
+    header: "^#!.*/(env .+)?qml( .*|$)"
+
+rules:
+    - include: "javascript"
+
+    # TODO: why does this not overwrite javascript rules?
+    - comment: "^#!.*/(env .+)?qml( .*|$)"
+
+    - constant: "\\b(bool|double|enumeration|int|list|real|string|url|var)\\b"
+    - constant: "\\b(date|point|rect|size)\\b"
+    - constant: "\\b(parent)\\b"
+    - statement: "\\b(property|alias|signal)\\b"
+    - identifier: "[A-z.]+[ ]*:"
+
+    # qml types start with capital letter
+    # TODO: why does this not work in import lines?
+    - type: "(^|>|\\s)+[A-Z][A-z]*(\\.[A-Z][A-z]*)?"

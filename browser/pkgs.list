@@ -1,0 +1,3 @@
+--assume-installed ttf-font=1.0
+firefox
+chromium

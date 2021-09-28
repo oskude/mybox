@@ -1,0 +1,10 @@
+#!/usr/bin/ash
+
+run_earlyhook(){
+	if [ -e /setvtrgb.colors ]
+	then
+		setvtrgb /setvtrgb.colors
+	else
+		msg "/setvtrgb.colors not found."
+	fi
+}

@@ -1,0 +1,8 @@
+[Mount]
+Where=/tmp
+What=tmpfs
+Type=tmpfs
+Options=rw,size=256M
+
+[Install]
+RequiredBy=local-fs.target

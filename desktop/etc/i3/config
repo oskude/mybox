@@ -1,0 +1,115 @@
+# i3 config file (v4)
+
+set $mod §windowkey§
+font pango:§fontname§ §fontsize§px
+focus_follows_mouse no
+
+# make every window float
+for_window [class="[.]*"] floating enable
+floating_minimum_size 4 x 4
+
+# custom dock workaround
+set $dw §docksize§
+workspace 1 gaps left $dw
+workspace 3 gaps left $dw
+for_window [title="aldos-dock" window_type="splash"] floating enable, sticky enable, border none, resize set $dw 100ppt, move position 0 0
+
+# keybutt
+#set $kbs 24
+#workspace 1 gaps bottom $kbs
+#workspace 3 gaps bottom $kbs
+# i3 config cannot calculate, so you have to pos manually...
+
+### theme
+client.background §color00§
+#                       title     title     title     border    window
+# class                 border    backgr.   text      indictr   child_border
+client.focused          §color11§ §color11§ §color00§ §color11§ §color11§
+client.unfocused        §color07§ §color07§ §color00§ §color07§ §color07§
+default_border pixel §bordersize§
+default_floating_border pixel §bordersize§
+
+# use Mouse+$mod to drag floating windows to their wanted position
+floating_modifier $mod
+
+# start apps
+bindsym $mod+Return exec urxvt
+bindsym $mod+numbersign exec firefox
+bindsym $mod+space exec --no-startup-id aldos-launcher
+
+# kill focused window
+bindsym $mod+Shift+q kill
+
+# change focus
+bindsym $mod+Left focus left
+bindsym $mod+Down focus down
+bindsym $mod+Up focus up
+bindsym $mod+Right focus right
+
+# move focused window
+bindsym $mod+Shift+Left move left 1px
+bindsym $mod+Shift+Down move down 1px
+bindsym $mod+Shift+Up move up 1px
+bindsym $mod+Shift+Right move right 1px
+
+# split in horizontal orientation
+bindsym $mod+h split h
+
+# split in vertical orientation
+bindsym $mod+v split v
+
+# enter fullscreen mode for the focused container
+bindsym $mod+f fullscreen toggle
+
+# change container layout (stacked, tabbed, toggle split)
+bindsym $mod+s layout stacking
+bindsym $mod+w layout tabbed
+bindsym $mod+e layout toggle split
+
+# toggle tiling / floating
+bindsym $mod+Shift+t floating toggle
+
+# change focus between tiling / floating windows
+#bindsym $mod+space focus mode_toggle
+
+# focus the parent container
+bindsym $mod+a focus parent
+
+# focus the child container
+#bindsym $mod+d focus child
+
+# reload the configuration file
+bindsym $mod+Shift+c reload
+# restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
+bindsym $mod+Shift+r restart
+# exit i3 (logs you out of your X session)
+bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -B 'Yes, exit i3' 'i3-msg exit'"
+
+# resize window (you can also use the mouse for that)
+mode "resize" {
+	# These bindings trigger as soon as you enter the resize mode
+	bindsym Left        resize shrink width 1 px
+	bindsym Down        resize grow height 1 px
+	bindsym Up          resize shrink height 1 px
+	bindsym Right       resize grow width 1 px
+	# back to normal: Enter or Escape or $mod+r
+	bindsym Return mode "default"
+	bindsym Escape mode "default"
+	bindsym $mod+r mode "default"
+}
+
+bindsym $mod+r mode "resize"
+
+# switch to workspace
+bindsym $mod+1 workspace 1
+bindsym $mod+2 workspace 2
+bindsym $mod+3 workspace 3
+bindsym $mod+4 workspace 4
+
+# move focused container to workspace
+bindsym $mod+Shift+1 move container to workspace 1
+bindsym $mod+Shift+2 move container to workspace 2
+bindsym $mod+Shift+3 move container to workspace 3
+bindsym $mod+Shift+4 move container to workspace 4
+
+# TODO: https://unix.stackexchange.com/questions/289936/i3wm-how-to-make-multiple-monitors-switch-workspaces-in-a-single-binding

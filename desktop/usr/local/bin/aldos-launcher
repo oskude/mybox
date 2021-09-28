@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+# afaik, dmenu has no system config file, so...
+dmenu_run -fn '§fontname§:pixelsize=§fontsize§' -nb '§color00§' -nf '§color07§' -sb '§color07§' -sf '§color00§'

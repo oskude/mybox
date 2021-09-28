@@ -1,0 +1,38 @@
+# NOTE: these are the colors defined in terminal
+color-link line-number "brightblack"
+color-link current-line-number "white"
+
+color-link comment "brightblack"
+
+color-link type "brightyellow"
+color-link identifier "yellow"
+
+color-link statement "red"
+color-link symbol "magenta"
+color-link symbol.brackets "brightwhite"
+
+color-link constant "cyan"
+
+color-link preproc "brightred"
+color-link special "brightred"
+
+color-link indent-char "brightblack"
+
+#color-link ignore "default"
+#color-link error ",brightred"
+#color-link todo ",brightyellow"
+#color-link indent-char "black"
+#color-link diff-added "green"
+#color-link diff-modified "yellow"
+#color-link diff-deleted "red"
+#color-link gutter-error ",red"
+#color-link gutter-warning "red"
+##Cursor line causes readability issues. Disabled for now.
+##color-link cursor-line "white,black"
+#color-link color-column "white"
+##No extended types. (bool in C)
+#color-link type.extended "default"
+##No bracket highlighting.
+#color-link symbol.brackets "default"
+##Color shebangs the comment color
+#color-link preproc.shebang "comment"

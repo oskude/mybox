@@ -1,0 +1,8 @@
+[Mount]
+Where=/home/human
+What=tmpfs
+Type=tmpfs
+Options=rw,uid=human,gid=human,size=512M
+
+[Install]
+RequiredBy=local-fs.target

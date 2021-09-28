@@ -1,0 +1,11 @@
+Vagrant.configure("2") do |config|
+	config.vm.box = "archlinux/archlinux"
+	config.vm.provision "shell", privileged: true, inline: <<-EOP
+		pacman --noconfirm -R virtualbox-guest-utils-nox
+		pacman --noconfirm --needed -Syu nano python-fuse rsync virtualbox-guest-utils rxvt-unicode-terminfo
+	EOP
+	config.vm.provider "virtualbox" do |vb|
+		vb.memory = "2000"
+		vb.gui = true
+	end
+end

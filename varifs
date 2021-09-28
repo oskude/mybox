@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+
+# tips https://github.com/libfuse/python-fuse/blob/master/example/xmp.py
+# use `./varifs -f` to run in foreground, to get any python errors
+
+# cause systemd.mount insist on naming file like path
+# we cannot use username variable inside...
+# so as a workaround we would have to have variable filenames...
+# TODO: how feasible would that be? even possible?
+# - would need to rename on dir list
+# - and when reading directly
+
+import os, fuse, json
+from fuse import Fuse
+from pathlib import Path
+from stat import *
+
+fuse.fuse_python_api = (0, 2)
+fuse.feature_assert('stateful_files', 'has_init')
+
+vars = {}
+varifile = ".varifs"
+prefix = "§"
+suffix = "§"
+
+def flag2mode(flags):
+	md = {os.O_RDONLY: 'rb', os.O_WRONLY: 'wb', os.O_RDWR: 'wb+'}
+	m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
+	if flags | os.O_APPEND:
+		m = m.replace('w', 'a', 1)
+	return m
+
+def resolveRead(file):
+	global vars, prefix, suffix
+	data = file.read()
+	for key in vars:
+		val = bytes(str(vars[key]), "utf-8")
+		wat = bytes(prefix+key+suffix, "utf-8")
+		data = data.replace(wat, val)
+	return data
+
+# TODO: do we really need this to update st_size?
+class MyStat(fuse.Stat):
+	def __init__(self):
+		self.st_mode = 0
+		self.st_ino = 0
+		self.st_dev = 0
+		self.st_nlink = 0
+		self.st_uid = 0
+		self.st_gid = 0
+		self.st_size = 0
+		self.st_atime = 0
+		self.st_mtime = 0
+		self.st_ctime = 0
+	def update(self, mode):
+		self.st_mode = mode.st_mode
+		self.st_ino = mode.st_ino
+		self.st_dev = mode.st_dev
+		self.st_nlink = mode.st_nlink
+		self.st_uid = mode.st_uid
+		self.st_gid = mode.st_gid
+		self.st_size = mode.st_size
+		self.st_atime = mode.st_atime
+		self.st_mtime = mode.st_mtime
+		self.st_ctime = mode.st_ctime
+
+class VariFS(Fuse):
+	def __init__(self, *args, **kw):
+		Fuse.__init__(self, *args, **kw)
+		self.root = os.getcwd()
+
+	def getattr(self, path):
+		mode = MyStat()
+		mode.update(os.lstat("." + path))
+		if S_ISREG(mode.st_mode):
+			file = os.fdopen(os.open("." + path, os.O_RDONLY), flag2mode(os.O_RDONLY))
+			data = resolveRead(file)
+			file.close()
+			mode.st_size = len(data)
+		return mode
+
+	def readlink(self, path):
+		return os.readlink("." + path)
+
+	def readdir(self, path, offset):
+		for e in os.listdir("." + path):
+			yield fuse.Direntry(e)
+
+	def utime(self, path, times):
+		os.utime("." + path, times)
+
+	def access(self, path, mode):
+		if not os.access("." + path, mode):
+			return -EACCES
+
+	def fsinit(self):
+		os.chdir(self.root)
+
+	class VariFile(object):
+		def __init__(self, path, flags, *mode):
+			self.file = os.fdopen(os.open("." + path, flags, *mode), flag2mode(flags))
+			self.fd = self.file.fileno()
+
+		def read(self, length, offset):
+			data = resolveRead(self.file)
+			return data[offset:offset+length]
+
+		def release(self, flags):
+			self.file.close()
+
+		def fgetattr(self):
+			mode = MyStat()
+			mode.update(os.fstat(self.fd))
+			if S_ISREG(mode.st_mode):
+				data = resolveRead(file)
+				file.seek(0)
+				mode.st_size = len(data)
+			return mode
+
+	def main(self, *a, **kw):
+		self.file_class = self.VariFile
+		return Fuse.main(self, *a, **kw)
+
+def main():
+	usage = """
+Mirror the filesystem, and replace variables in files.
+""" + Fuse.fusage
+
+	server = VariFS(
+		version = "%prog " + fuse.__version__,
+		usage = usage,
+		dash_s_do = "setsingle"
+	)
+
+	server.parser.add_option(
+		mountopt = "root",
+		metavar = "PATH",
+		default = os.getcwd(),
+		help = "path to mirror [default: %default]"
+	)
+
+	server.parser.add_option(
+		mountopt = "varix",
+		metavar = "STRING",
+		default = "§§",
+		help = "prefix+suffix for variables [default: %default]"
+	)
+
+	server.parser.add_option(
+		mountopt = "varifile",
+		metavar = "PATH",
+		default = os.getcwd() + "/.varifs",
+		help = "path to variables file [default: %default]"
+	)
+
+	server.parse(values=server, errex=1)
+
+	try:
+		if server.fuse_args.mount_expected():
+			os.chdir(server.root)
+	except OSError:
+		print("can't enter root of underlying filesystem", file=sys.stderr)
+		sys.exit(1)
+
+	# TODO: how do we read those server.parser.add_option options?!?!?!?!
+	global vars, varifile
+	with open(varifile, "r") as file:
+		vars = json.load(file)
+
+	server.main()
+
+if __name__ == "__main__":
+	main()

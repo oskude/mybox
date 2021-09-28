@@ -1,0 +1,68 @@
+#!/usr/bin/env -S QML_XHR_ALLOW_FILE_READ=1 QML_XHR_ALLOW_FILE_WRITE=1 qml
+
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import QtQuick.Layouts 1.15
+import QtQml.Models 2.15
+import ".lib/qml" as A
+
+Window {
+	id: root
+	width: main.width
+	height: main.height
+	visible: true
+	title: "themor"
+	color: theme.values.color08
+
+	A.Theme { id: theme }
+
+	ColumnLayout {
+		id: main
+		spacing: 1
+		RowLayout {
+			width: parent.width
+			spacing: 1
+			A.Entry {
+				text: theme.themefile
+				Layout.fillWidth: true
+				onTextEdited: {
+					theme.themefile = text
+					parent.focus = true
+				}
+			}
+			A.Button {
+				text: "Reset"
+				onClicked: theme.resetTheme()
+			}
+			A.Button {
+				text: "Load"
+				onClicked: theme.loadTheme()
+			}
+			A.Button {
+				text: "Save"
+				onClicked: theme.saveTheme()
+			}
+		}
+		Flow {
+			width: root.width
+			spacing: 1
+			Repeater {
+				model: theme.itemModel
+			}
+		}
+	}
+
+	function readFile (path) {
+		let req = new XMLHttpRequest()
+		req.open("GET", path, false)
+		req.send(null)
+		return req.responseText
+	}
+
+	function writeFile (path, text) {
+		let req = new XMLHttpRequest()
+		req.open("PUT", path, false)
+		req.send(text)
+		return req.status
+	}
+}
